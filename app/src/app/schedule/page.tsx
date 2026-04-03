@@ -360,7 +360,7 @@ export default function SchedulePage() {
                 const isDelivery = sched?.delivery;
                 const isWeekend = !sched;
                 const statusInfo = sched
-                  ? STATUS_LABELS[sched.status]
+                  ? STATUS_LABELS[sched.status] ?? { label: sched.status, color: "text-gray-400" }
                   : null;
 
                 return (
@@ -427,8 +427,8 @@ export default function SchedulePage() {
                       </h3>
                       <p className="text-sm text-gray-400">
                         {selectedDaySchedule.main_product_name}
-                        {selectedDaySchedule.others?.length > 0 &&
-                          ` + ${selectedDaySchedule.others.map((o) => o.product_name).join(", ")}`}
+                        {selectedDaySchedule.others?.filter((o) => o.selectable).length > 0 &&
+                          ` + ${selectedDaySchedule.others?.filter((o) => o.selectable).map((o) => o.product_name).join(", ")}`}
                       </p>
                     </div>
                     {(selectedDaySchedule.status === "user_selected" ||

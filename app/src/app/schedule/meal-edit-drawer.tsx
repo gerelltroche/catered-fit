@@ -123,7 +123,7 @@ export default function MealEditDrawer({
     const mealTypes = new Set<number>();
     const preferences = new Set<string>();
     const temps = new Set<string>();
-    for (const item of menuItems) {
+    for (const item of menuItems.filter((i) => i.state !== "sold_out")) {
       mealTypes.add(item.meal_type_id);
       for (const tag of item.tags) {
         tag.split(",").forEach((t) => {
@@ -189,7 +189,7 @@ export default function MealEditDrawer({
 
   // Filter + split: selected items on top, rest below
   const filteredItems = useMemo(() => {
-    let items = menuItems;
+    let items = menuItems.filter((i) => i.state !== "sold_out");
 
     if (filterMealTypes.size > 0) {
       items = items.filter((i) => filterMealTypes.has(i.meal_type_id));
@@ -222,10 +222,9 @@ export default function MealEditDrawer({
   function renderCard(item: MenuItem) {
     const qty = selections[item.id] || 0;
     const macros = getMacrosForPortion(item.macros, portionId);
-    const imgSrc = item.image_url
+    const imgSrc = item.show_image && item.image_url
       ? `${IMAGE_CDN}/${item.image_url}`
       : null;
-
     return (
       <div
         key={item.id}
@@ -538,7 +537,7 @@ export default function MealEditDrawer({
             <div className="flex gap-3 overflow-x-auto pb-1">
               {selectedItems.map((item) => {
                 const qty = selections[item.id] || 0;
-                const imgSrc = item.image_url
+                const imgSrc = item.show_image && item.image_url
                   ? `${IMAGE_CDN}/${item.image_url}`
                   : null;
                 return (
