@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
 import type { ScheduleDay, MealSelection, MenuItem } from "@/lib/types";
 import { getMacrosForPortion, menuItemToSubmission } from "@/lib/types";
+import { getRatings } from "@/lib/ratings";
 
 const IMAGE_CDN = "https://cateredfit-images.s3.amazonaws.com";
 
@@ -49,6 +50,8 @@ export default function MealEditDrawer({
   const [filterMealTypes, setFilterMealTypes] = useState<Set<number>>(new Set());
   const [filterPreferences, setFilterPreferences] = useState<Set<string>>(new Set());
   const [filterTemps, setFilterTemps] = useState<Set<string>>(new Set());
+  const [sortByRating, setSortByRating] = useState(false);
+  const [mealRatings, setMealRatings] = useState<Record<number, number>>({});
 
   const portionId = api.userInfo?.portionId ?? 3;
   const maxMeals = schedule.quantity;
@@ -60,6 +63,15 @@ export default function MealEditDrawer({
     setFilterMealTypes(new Set());
     setFilterPreferences(new Set());
     setFilterTemps(new Set());
+    setSortByRating(false);
+
+    // Load ratings from storage
+    const stored = getRatings();
+    const rMap: Record<number, number> = {};
+    for (const [id, r] of Object.entries(stored)) {
+      rMap[Number(id)] = r.rating;
+    }
+    setMealRatings(rMap);
 
     const initSelections = () => {
       const counts: Record<number, number> = {};
@@ -192,13 +204,18 @@ export default function MealEditDrawer({
     if (filterTemps.size > 0) {
       items = items.filter((i) => filterTemps.has(i.macros.tempeture));
     }
+    if (sortByRating) {
+      items = [...items].sort(
+        (a, b) => (mealRatings[b.id] || 0) - (mealRatings[a.id] || 0)
+      );
+    }
     return items;
-  }, [menuItems, filterMealTypes, filterPreferences, filterTemps, selections]);
+  }, [menuItems, filterMealTypes, filterPreferences, filterTemps, selections, sortByRating, mealRatings]);
 
   const selectedItems = filteredItems.filter((i) => (selections[i.id] || 0) > 0);
   const unselectedItems = filteredItems.filter((i) => !(selections[i.id] || 0));
 
-  const hasActiveFilters = filterMealTypes.size > 0 || filterPreferences.size > 0 || filterTemps.size > 0;
+  const hasActiveFilters = filterMealTypes.size > 0 || filterPreferences.size > 0 || filterTemps.size > 0 || sortByRating;
 
   if (!open) return null;
 
@@ -272,12 +289,36 @@ export default function MealEditDrawer({
             {item.description || item.name}
           </p>
 
-          {/* Macros */}
+          {/* Macros + Rating */}
           <div className="flex items-center gap-2 text-[10px] mb-3">
             <span className="text-gray-400">{macros.cal} cal</span>
             <span className="text-blue-400">{macros.pro}P</span>
             <span className="text-amber-400">{macros.carbs}C</span>
             <span className="text-rose-400">{macros.fat}F</span>
+            {mealRatings[item.id] ? (
+              <span className="flex items-center gap-0.5 ml-auto">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <svg
+                    key={i}
+                    className={`h-2.5 w-2.5 ${
+                      i < mealRatings[item.id] ? "text-yellow-400" : "text-gray-700"
+                    }`}
+                    fill={i < mealRatings[item.id] ? "currentColor" : "none"}
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.562.562 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
+                    />
+                  </svg>
+                ))}
+              </span>
+            ) : (
+              <span className="ml-auto text-gray-600 italic">Not tried yet</span>
+            )}
           </div>
 
           {/* Stepper */}
@@ -452,6 +493,23 @@ export default function MealEditDrawer({
               ))}
             </div>
 
+            {/* Sort by Rating */}
+            {Object.keys(mealRatings).length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-medium text-gray-600 uppercase tracking-wider mr-0.5">Sort</span>
+                <button
+                  onClick={() => setSortByRating((prev) => !prev)}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                    sortByRating
+                      ? "bg-yellow-500 text-black"
+                      : "bg-gray-800/80 text-gray-400 hover:bg-gray-700 hover:text-gray-200"
+                  }`}
+                >
+                  Rating
+                </button>
+              </div>
+            )}
+
             {/* Clear */}
             {hasActiveFilters && (
               <button
@@ -459,6 +517,7 @@ export default function MealEditDrawer({
                   setFilterMealTypes(new Set());
                   setFilterPreferences(new Set());
                   setFilterTemps(new Set());
+                  setSortByRating(false);
                 }}
                 className="rounded-full px-2.5 py-1 text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors"
               >
